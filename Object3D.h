@@ -4,19 +4,60 @@
 #include <vector>
 #include <array>
 #include <cmath>
+#include <string>
 #include "Vector3.h"
 
 class Object3D {
 public:
     std::vector<Vector3> vertices;
+    std::vector<Vector3> normals;  // Normal vectors for lighting
+    std::vector<std::pair<float, float>> texCoords;  // Texture coordinates (u,v)
     std::vector<std::pair<int, int>> edges;
     std::vector<std::vector<int>> faces;
     std::array<float, 3> color;  // RGB color (values 0.0-1.0)
+    std::string texturePath;     // Path to texture image
 
-    Object3D() : color({1.0f, 1.0f, 1.0f}) {} // Default white color
+    Object3D() : color({1.0f, 1.0f, 1.0f}), texturePath("") {} // Default white color, no texture
 
     void setColor(float r, float g, float b) {
         color = {r, g, b};
+    }
+    
+    void setTexture(const std::string& path) {
+        texturePath = path;
+    }
+    
+    // Calculate normals for a face
+    Vector3 calculateFaceNormal(const std::vector<int>& face) const {
+        if (face.size() < 3) return Vector3(0, 1, 0); // Default if invalid face
+        
+        const Vector3& v1 = vertices[face[0]];
+        const Vector3& v2 = vertices[face[1]];
+        const Vector3& v3 = vertices[face[2]];
+        
+        Vector3 edge1 = v2 - v1;
+        Vector3 edge2 = v3 - v1;
+        return edge1.cross(edge2).normalize();
+    }
+    
+    // Calculate normals for all vertices (average of face normals)
+    void calculateNormals() {
+        // Initialize normals array
+        normals.clear();
+        normals.resize(vertices.size(), Vector3(0, 0, 0));
+        
+        // For each face, calculate normal and add to connected vertices
+        for (const auto& face : faces) {
+            Vector3 faceNormal = calculateFaceNormal(face);
+            for (int vertexIndex : face) {
+                normals[vertexIndex] = normals[vertexIndex] + faceNormal;
+            }
+        }
+        
+        // Normalize all vertex normals
+        for (auto& normal : normals) {
+            normal = normal.normalize();
+        }
     }
 
     // Factory method to create a cube
@@ -36,6 +77,18 @@ public:
             {-halfSize, halfSize, halfSize}     // 7: front top left
         };
         
+        // Define texture coordinates for each vertex (UV mapping)
+        cube.texCoords = {
+            {0.0f, 0.0f}, // 0
+            {1.0f, 0.0f}, // 1
+            {1.0f, 1.0f}, // 2
+            {0.0f, 1.0f}, // 3
+            {1.0f, 0.0f}, // 4
+            {0.0f, 0.0f}, // 5
+            {0.0f, 1.0f}, // 6
+            {1.0f, 1.0f}  // 7
+        };
+        
         // Define the 12 edges of the cube
         cube.edges = {
             {0, 1}, {1, 2}, {2, 3}, {3, 0},  // back face
@@ -52,6 +105,9 @@ public:
             {0, 3, 7, 4},  // left face
             {1, 2, 6, 5}   // right face
         };
+        
+        // Calculate normals
+        cube.calculateNormals();
         
         return cube;
     }
@@ -70,6 +126,15 @@ public:
             {0.0f, 0.0f, height}                 // 4: apex
         };
         
+        // Define texture coordinates
+        pyramid.texCoords = {
+            {0.0f, 0.0f},  // 0
+            {1.0f, 0.0f},  // 1
+            {1.0f, 1.0f},  // 2
+            {0.0f, 1.0f},  // 3
+            {0.5f, 0.5f}   // 4 (apex)
+        };
+        
         // Define the 8 edges of the pyramid
         pyramid.edges = {
             {0, 1}, {1, 2}, {2, 3}, {3, 0},  // base
@@ -84,6 +149,9 @@ public:
             {2, 3, 4},     // back face
             {3, 0, 4}      // left face
         };
+        
+        // Calculate normals
+        pyramid.calculateNormals();
         
         return pyramid;
     }
@@ -100,6 +168,14 @@ public:
             {size/2.0f, size * 0.289f, size * 0.816f}  // 3: apex
         };
         
+        // Define texture coordinates
+        tetra.texCoords = {
+            {0.0f, 0.0f},  // 0
+            {1.0f, 0.0f},  // 1
+            {0.5f, 1.0f},  // 2
+            {0.5f, 0.5f}   // 3
+        };
+        
         // Define the 6 edges of the tetrahedron
         tetra.edges = {
             {0, 1}, {1, 2}, {2, 0},  // base
@@ -114,6 +190,9 @@ public:
             {2, 0, 3}   // left face
         };
         
+        // Calculate normals
+        tetra.calculateNormals();
+        
         return tetra;
     }
     
@@ -124,14 +203,24 @@ public:
         // Generate vertices using spherical coordinates
         for (int i = 0; i <= resolution; i++) {
             float phi = M_PI * static_cast<float>(i) / resolution;  // 0 to π (latitude)
+            float v = static_cast<float>(i) / resolution;           // Texture coordinate v
+            
             for (int j = 0; j < resolution; j++) {
                 float theta = 2.0f * M_PI * static_cast<float>(j) / resolution;  // 0 to 2π (longitude)
+                float u = static_cast<float>(j) / resolution;                    // Texture coordinate u
                 
                 float x = radius * sin(phi) * cos(theta);
                 float y = radius * sin(phi) * sin(theta);
                 float z = radius * cos(phi);
                 
                 sphere.vertices.push_back({x, y, z});
+                
+                // For a sphere, normals point in same direction as vertex position from center
+                Vector3 normal = Vector3(x, y, z).normalize();
+                sphere.normals.push_back(normal);
+                
+                // Texture coordinates (simple UV mapping)
+                sphere.texCoords.push_back({u, v});
             }
         }
         

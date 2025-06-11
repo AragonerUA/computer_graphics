@@ -10,12 +10,15 @@
 #include "Matrix4x4.h"
 #include "Object3D.h"
 #include "TransformationPipeline.h"
+#include "TextureLoader.h"
 
 // Global variables for application state
 int windowWidth = 800;
 int windowHeight = 600;
 bool wireframeMode = true;
 bool depthTestEnabled = true;
+bool lightingEnabled = true;
+bool texturesEnabled = true;
 
 // Object transformation parameters
 Vector3 objectPosition(0.0f, 0.0f, 0.0f);
@@ -27,12 +30,44 @@ Vector3 cameraPosition(0.0f, 0.0f, 5.0f);
 Vector3 cameraTarget(0.0f, 0.0f, 0.0f);
 Vector3 cameraUp(0.0f, 1.0f, 0.0f);
 
+// Light parameters
+Vector3 lightPosition(3.0f, 3.0f, 3.0f);
+float ambientIntensity = 0.2f;
+float diffuseIntensity = 0.7f;
+float specularIntensity = 0.5f;
+float shininess = 32.0f;
+
 // Current object selection
 int currentObjectIndex = 0;
 std::vector<Object3D> objects;
+std::vector<GLuint> textures;
 
 // TransformationPipeline instance
 TransformationPipeline pipeline;
+
+// Initialize lighting
+void setupLighting() {
+    if (lightingEnabled) {
+        glEnable(GL_LIGHTING);
+        glEnable(GL_LIGHT0);
+        
+        // Set ambient lighting
+        GLfloat ambientLight[] = { ambientIntensity, ambientIntensity, ambientIntensity, 1.0f };
+        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientLight);
+        
+        // Configure light source 0
+        GLfloat lightPos[] = { lightPosition.x, lightPosition.y, lightPosition.z, 1.0f };
+        glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+        
+        GLfloat diffuseLight[] = { diffuseIntensity, diffuseIntensity, diffuseIntensity, 1.0f };
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+        
+        GLfloat specularLight[] = { specularIntensity, specularIntensity, specularIntensity, 1.0f };
+        glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+    } else {
+        glDisable(GL_LIGHTING);
+    }
+}
 
 // Function to handle rendering
 void display() {
@@ -53,6 +88,9 @@ void display() {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
     
+    // Set up lighting
+    setupLighting();
+    
     // Set model transformation
     pipeline.setModelTransform(objectPosition, objectRotation, objectScale);
     
@@ -65,11 +103,30 @@ void display() {
     // Render the current object
     const Object3D& object = objects[currentObjectIndex];
     
-    // Set the object's color
-    glColor3f(object.color[0], object.color[1], object.color[2]);
+    // Enable texturing if not in wireframe mode
+    if (!wireframeMode && texturesEnabled) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, textures[currentObjectIndex]);
+    } else {
+        glDisable(GL_TEXTURE_2D);
+    }
+    
+    // Set material properties
+    GLfloat materialAmbient[] = { object.color[0] * 0.2f, object.color[1] * 0.2f, object.color[2] * 0.2f, 1.0f };
+    GLfloat materialDiffuse[] = { object.color[0], object.color[1], object.color[2], 1.0f };
+    GLfloat materialSpecular[] = { 1.0f, 1.0f, 1.0f, 1.0f }; // White specular highlight
+    glMaterialfv(GL_FRONT, GL_AMBIENT, materialAmbient);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, materialDiffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, materialSpecular);
+    glMaterialf(GL_FRONT, GL_SHININESS, shininess);
     
     // Draw edges in wireframe mode
     if (wireframeMode) {
+        // Disable lighting for wireframe rendering
+        glDisable(GL_LIGHTING);
+        // Set the object's color directly
+        glColor3f(object.color[0], object.color[1], object.color[2]);
+        
         glBegin(GL_LINES);
         for (const auto& edge : object.edges) {
             // Get the vertices at each end of the edge
@@ -84,6 +141,11 @@ void display() {
             glVertex3f(transformedV2.x, transformedV2.y, transformedV2.z);
         }
         glEnd();
+        
+        // Re-enable lighting if it was on
+        if (lightingEnabled) {
+            glEnable(GL_LIGHTING);
+        }
     } else {
         // Draw filled polygons
         for (const auto& face : object.faces) {
@@ -94,7 +156,26 @@ void display() {
             }
             
             // For each vertex in the face
-            for (int vertexIndex : face) {
+            for (size_t i = 0; i < face.size(); i++) {
+                int vertexIndex = face[i];
+                
+                // Set normal vector for lighting calculations
+                if (lightingEnabled && !object.normals.empty()) {
+                    const Vector3& normal = object.normals[vertexIndex];
+                    glNormal3f(normal.x, normal.y, normal.z);
+                }
+                
+                // Set texture coordinates if texturing is enabled
+                if (texturesEnabled && !object.texCoords.empty()) {
+                    // If vertexIndex is out of range for texCoords, use a default
+                    if (vertexIndex < object.texCoords.size()) {
+                        glTexCoord2f(object.texCoords[vertexIndex].first, 
+                                    object.texCoords[vertexIndex].second);
+                    } else {
+                        glTexCoord2f(0.0f, 0.0f);
+                    }
+                }
+                
                 const Vector3& vertex = object.vertices[vertexIndex];
                 Vector3 transformed = pipeline.applyMVP(vertex);
                 glVertex3f(transformed.x, transformed.y, transformed.z);
@@ -103,6 +184,9 @@ void display() {
             glEnd();
         }
     }
+    
+    // Disable texturing
+    glDisable(GL_TEXTURE_2D);
     
     // Restore default polygon mode
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -168,6 +252,16 @@ void keyboard(unsigned char key, int x, int y) {
         case 't':
             depthTestEnabled = !depthTestEnabled;
             break;
+            
+        // Toggle lighting
+        case 'l':
+            lightingEnabled = !lightingEnabled;
+            break;
+            
+        // Toggle textures
+        case 'g':
+            texturesEnabled = !texturesEnabled;
+            break;
         
         // Change object
         case '\t':  // Tab key
@@ -176,6 +270,7 @@ void keyboard(unsigned char key, int x, int y) {
         
         // Exit application
         case 27:  // Escape key
+            TextureLoader::cleanup();  // Clean up textures
             exit(0);
             break;
     }
@@ -222,6 +317,11 @@ int main(int argc, char** argv) {
     // Set background color
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     
+    // Set up OpenGL features
+    glShadeModel(GL_SMOOTH);  // Enable smooth shading
+    glEnable(GL_DEPTH_TEST);  // Enable depth testing
+    glEnable(GL_NORMALIZE);   // Normalize normals for proper lighting
+    
     // Create 3D objects
     objects.push_back(Object3D::createCube(1.0f));
     objects.push_back(Object3D::createPyramid(1.0f, 1.5f));
@@ -233,6 +333,12 @@ int main(int argc, char** argv) {
     objects[1].setColor(0.0f, 1.0f, 0.0f);  // Green pyramid
     objects[2].setColor(0.0f, 0.0f, 1.0f);  // Blue tetrahedron
     objects[3].setColor(1.0f, 1.0f, 0.0f);  // Yellow sphere
+    
+    // Create textures for each object
+    textures.push_back(TextureLoader::createProceduralTexture("checkerboard"));
+    textures.push_back(TextureLoader::createProceduralTexture("brick"));
+    textures.push_back(TextureLoader::createProceduralTexture("gradient"));
+    textures.push_back(TextureLoader::createProceduralTexture("checkerboard"));
     
     // Initialize transformation pipeline
     pipeline = TransformationPipeline();
@@ -248,6 +354,8 @@ int main(int argc, char** argv) {
     std::cout << "  R: Reset transformations" << std::endl;
     std::cout << "  F: Toggle wireframe mode" << std::endl;
     std::cout << "  T: Toggle depth test" << std::endl;
+    std::cout << "  L: Toggle lighting" << std::endl;
+    std::cout << "  G: Toggle textures" << std::endl;
     std::cout << "  TAB: Switch between objects" << std::endl;
     std::cout << "  ESC: Exit application" << std::endl;
     
