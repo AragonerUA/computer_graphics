@@ -74,6 +74,27 @@ void display() {
     // Clear color and depth buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
+    // Set up projection matrix
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.1f, 100.0f);
+    
+    // Set up modelview matrix
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    gluLookAt(
+        cameraPosition.x, cameraPosition.y, cameraPosition.z,
+        cameraTarget.x, cameraTarget.y, cameraTarget.z,
+        cameraUp.x, cameraUp.y, cameraUp.z
+    );
+    
+    // Apply object transformations
+    glTranslatef(objectPosition.x, objectPosition.y, objectPosition.z);
+    glRotatef(objectRotation.x, 1.0f, 0.0f, 0.0f);
+    glRotatef(objectRotation.y, 0.0f, 1.0f, 0.0f);
+    glRotatef(objectRotation.z, 0.0f, 0.0f, 1.0f);
+    glScalef(objectScale.x, objectScale.y, objectScale.z);
+    
     // Set up depth testing
     if (depthTestEnabled) {
         glEnable(GL_DEPTH_TEST);
@@ -90,15 +111,6 @@ void display() {
     
     // Set up lighting
     setupLighting();
-    
-    // Set model transformation
-    pipeline.setModelTransform(objectPosition, objectRotation, objectScale);
-    
-    // Set camera position
-    pipeline.setViewTransform(cameraPosition, cameraTarget, cameraUp);
-    
-    // Set projection
-    pipeline.setProjection(45.0f, static_cast<float>(windowWidth) / windowHeight, 0.1f, 100.0f);
     
     // Render the current object
     const Object3D& object = objects[currentObjectIndex];
@@ -133,12 +145,8 @@ void display() {
             const Vector3& v1 = object.vertices[edge.first];
             const Vector3& v2 = object.vertices[edge.second];
             
-            // Transform the vertices and pass them to OpenGL
-            Vector3 transformedV1 = pipeline.applyMVP(v1);
-            Vector3 transformedV2 = pipeline.applyMVP(v2);
-            
-            glVertex3f(transformedV1.x, transformedV1.y, transformedV1.z);
-            glVertex3f(transformedV2.x, transformedV2.y, transformedV2.z);
+            glVertex3f(v1.x, v1.y, v1.z);
+            glVertex3f(v2.x, v2.y, v2.z);
         }
         glEnd();
         
@@ -160,25 +168,19 @@ void display() {
                 int vertexIndex = face[i];
                 
                 // Set normal vector for lighting calculations
-                if (lightingEnabled && !object.normals.empty()) {
+                if (lightingEnabled && !object.normals.empty() && vertexIndex < object.normals.size()) {
                     const Vector3& normal = object.normals[vertexIndex];
                     glNormal3f(normal.x, normal.y, normal.z);
                 }
                 
                 // Set texture coordinates if texturing is enabled
-                if (texturesEnabled && !object.texCoords.empty()) {
-                    // If vertexIndex is out of range for texCoords, use a default
-                    if (vertexIndex < object.texCoords.size()) {
-                        glTexCoord2f(object.texCoords[vertexIndex].first, 
-                                    object.texCoords[vertexIndex].second);
-                    } else {
-                        glTexCoord2f(0.0f, 0.0f);
-                    }
+                if (texturesEnabled && !object.texCoords.empty() && vertexIndex < object.texCoords.size()) {
+                    glTexCoord2f(object.texCoords[vertexIndex].first, 
+                                object.texCoords[vertexIndex].second);
                 }
                 
                 const Vector3& vertex = object.vertices[vertexIndex];
-                Vector3 transformed = pipeline.applyMVP(vertex);
-                glVertex3f(transformed.x, transformed.y, transformed.z);
+                glVertex3f(vertex.x, vertex.y, vertex.z);
             }
             
             glEnd();
@@ -275,6 +277,7 @@ void keyboard(unsigned char key, int x, int y) {
             break;
     }
     
+    // Redraw the scene with updated parameters
     glutPostRedisplay();
 }
 
@@ -339,9 +342,6 @@ int main(int argc, char** argv) {
     textures.push_back(TextureLoader::createProceduralTexture("brick"));
     textures.push_back(TextureLoader::createProceduralTexture("gradient"));
     textures.push_back(TextureLoader::createProceduralTexture("checkerboard"));
-    
-    // Initialize transformation pipeline
-    pipeline = TransformationPipeline();
     
     // Print instructions
     std::cout << "==== 3D Transformation and Rendering ====" << std::endl;
