@@ -14,12 +14,10 @@ class Matrix4x4 {
 public:
     float m[4][4];
     
-    // Constructor - Identity matrix by default
     Matrix4x4() {
         identity();
     }
     
-    // Constructor with provided values
     Matrix4x4(const float values[4][4]) {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
@@ -28,7 +26,6 @@ public:
         }
     }
     
-    // Set to identity matrix
     void identity() {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
@@ -37,7 +34,6 @@ public:
         }
     }
     
-    // Matrix multiplication
     Matrix4x4 operator*(const Matrix4x4& other) const {
         Matrix4x4 result;
         for (int i = 0; i < 4; i++) {
@@ -51,7 +47,6 @@ public:
         return result;
     }
     
-    // Transpose the matrix
     Matrix4x4 transpose() const {
         Matrix4x4 result;
         for (int i = 0; i < 4; i++) {
@@ -62,14 +57,12 @@ public:
         return result;
     }
     
-    // Calculate the determinant of a 3x3 submatrix
     float det3x3(float a, float b, float c,
                  float d, float e, float f,
                  float g, float h, float i) const {
         return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
     }
     
-    // Calculate the 4x4 determinant
     float determinant() const {
         float det = 0;
         det += m[0][0] * det3x3(m[1][1], m[1][2], m[1][3],
@@ -87,7 +80,6 @@ public:
         return det;
     }
     
-    // Calculate the inverse matrix
     Matrix4x4 inverse() const {
         Matrix4x4 result;
         float det = determinant();
@@ -100,10 +92,8 @@ public:
         
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                // Get cofactor matrix
                 int sign = ((i + j) % 2 == 0) ? 1 : -1;
                 
-                // Build 3x3 submatrix by excluding row i and column j
                 float submatrix[9];
                 int idx = 0;
                 for (int k = 0; k < 4; k++) {
@@ -114,14 +104,12 @@ public:
                     }
                 }
                 
-                // Compute the cofactor
                 float cofactor = sign * det3x3(
                     submatrix[0], submatrix[1], submatrix[2],
                     submatrix[3], submatrix[4], submatrix[5],
                     submatrix[6], submatrix[7], submatrix[8]
                 );
                 
-                // Store transposed cofactor in result (for adjugate)
                 result.m[j][i] = cofactor * invDet;
             }
         }
@@ -129,14 +117,12 @@ public:
         return result;
     }
     
-    // Transform a vector by this matrix
     Vector3 transform(const Vector3& v) const {
         float x = v.x * m[0][0] + v.y * m[0][1] + v.z * m[0][2] + m[0][3];
         float y = v.x * m[1][0] + v.y * m[1][1] + v.z * m[1][2] + m[1][3];
         float z = v.x * m[2][0] + v.y * m[2][1] + v.z * m[2][2] + m[2][3];
         float w = v.x * m[3][0] + v.y * m[3][1] + v.z * m[3][2] + m[3][3];
         
-        // Perform perspective division if w is not 0 or 1
         if (w != 0.0f && w != 1.0f) {
             return Vector3(x / w, y / w, z / w);
         }
@@ -144,7 +130,6 @@ public:
         return Vector3(x, y, z);
     }
     
-    // Static methods to create transformation matrices
     static Matrix4x4 translation(float tx, float ty, float tz) {
         Matrix4x4 result;
         result.m[0][3] = tx;
@@ -243,7 +228,6 @@ public:
         return result;
     }
     
-    // For debugging
     friend std::ostream& operator<<(std::ostream& os, const Matrix4x4& matrix) {
         for (int i = 0; i < 4; i++) {
             os << "[ ";
@@ -256,4 +240,4 @@ public:
     }
 };
 
-#endif // MATRIX4X4_H
+#endif

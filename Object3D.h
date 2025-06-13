@@ -10,14 +10,14 @@
 class Object3D {
 public:
     std::vector<Vector3> vertices;
-    std::vector<Vector3> normals;  // Normal vectors for lighting
-    std::vector<std::pair<float, float>> texCoords;  // Texture coordinates (u,v)
+    std::vector<Vector3> normals; 
+    std::vector<std::pair<float, float>> texCoords;
     std::vector<std::pair<int, int>> edges;
     std::vector<std::vector<int>> faces;
-    std::array<float, 3> color;  // RGB color (values 0.0-1.0)
-    std::string texturePath;     // Path to texture image
+    std::array<float, 3> color;
+    std::string texturePath;
 
-    Object3D() : color({1.0f, 1.0f, 1.0f}), texturePath("") {} // Default white color, no texture
+    Object3D() : color({1.0f, 1.0f, 1.0f}), texturePath("") {}
 
     void setColor(float r, float g, float b) {
         color = {r, g, b};
@@ -27,9 +27,8 @@ public:
         texturePath = path;
     }
     
-    // Calculate normals for a face
     Vector3 calculateFaceNormal(const std::vector<int>& face) const {
-        if (face.size() < 3) return Vector3(0, 1, 0); // Default if invalid face
+        if (face.size() < 3) return Vector3(0, 1, 0);
         
         const Vector3& v1 = vertices[face[0]];
         const Vector3& v2 = vertices[face[1]];
@@ -40,13 +39,10 @@ public:
         return edge1.cross(edge2).normalize();
     }
     
-    // Calculate normals for all vertices (average of face normals)
     void calculateNormals() {
-        // Initialize normals array
         normals.clear();
         normals.resize(vertices.size(), Vector3(0, 0, 0));
         
-        // For each face, calculate normal and add to connected vertices
         for (const auto& face : faces) {
             Vector3 faceNormal = calculateFaceNormal(face);
             for (int vertexIndex : face) {
@@ -54,18 +50,15 @@ public:
             }
         }
         
-        // Normalize all vertex normals
         for (auto& normal : normals) {
             normal = normal.normalize();
         }
     }
 
-    // Factory method to create a cube
     static Object3D createCube(float size = 1.0f) {
         Object3D cube;
         float halfSize = size / 2.0f;
         
-        // Define the 8 vertices of the cube
         cube.vertices = {
             {-halfSize, -halfSize, -halfSize},  // 0: back bottom left
             {halfSize, -halfSize, -halfSize},   // 1: back bottom right
@@ -77,7 +70,6 @@ public:
             {-halfSize, halfSize, halfSize}     // 7: front top left
         };
         
-        // Define texture coordinates for each vertex (UV mapping)
         cube.texCoords = {
             {0.0f, 0.0f}, // 0
             {1.0f, 0.0f}, // 1
@@ -89,14 +81,12 @@ public:
             {1.0f, 1.0f}  // 7
         };
         
-        // Define the 12 edges of the cube
         cube.edges = {
             {0, 1}, {1, 2}, {2, 3}, {3, 0},  // back face
             {4, 5}, {5, 6}, {6, 7}, {7, 4},  // front face
             {0, 4}, {1, 5}, {2, 6}, {3, 7}   // connecting edges
         };
         
-        // Define the 6 faces of the cube
         cube.faces = {
             {0, 1, 2, 3},  // back face
             {4, 5, 6, 7},  // front face
@@ -106,18 +96,15 @@ public:
             {1, 2, 6, 5}   // right face
         };
         
-        // Calculate normals
         cube.calculateNormals();
         
         return cube;
     }
     
-    // Factory method to create a pyramid
     static Object3D createPyramid(float baseSize = 1.0f, float height = 1.0f) {
         Object3D pyramid;
         float halfBase = baseSize / 2.0f;
         
-        // Define the 5 vertices of the pyramid
         pyramid.vertices = {
             {-halfBase, -halfBase/2.0f, 0.0f},   // 0: front left base
             {halfBase, -halfBase/2.0f, 0.0f},    // 1: front right base
@@ -126,7 +113,6 @@ public:
             {0.0f, 0.0f, height}                 // 4: apex
         };
         
-        // Define texture coordinates
         pyramid.texCoords = {
             {0.0f, 0.0f},  // 0
             {1.0f, 0.0f},  // 1
@@ -135,13 +121,11 @@ public:
             {0.5f, 0.5f}   // 4 (apex)
         };
         
-        // Define the 8 edges of the pyramid
         pyramid.edges = {
             {0, 1}, {1, 2}, {2, 3}, {3, 0},  // base
             {0, 4}, {1, 4}, {2, 4}, {3, 4}   // edges to apex
         };
         
-        // Define the 5 faces of the pyramid
         pyramid.faces = {
             {0, 1, 2, 3},  // base
             {0, 1, 4},     // front face
@@ -150,17 +134,14 @@ public:
             {3, 0, 4}      // left face
         };
         
-        // Calculate normals
         pyramid.calculateNormals();
         
         return pyramid;
     }
     
-    // Factory method to create a custom tetrahedron
     static Object3D createTetrahedron(float size = 1.0f) {
         Object3D tetra;
         
-        // Define the 4 vertices of the tetrahedron
         tetra.vertices = {
             {0.0f, 0.0f, 0.0f},                     // 0: base front
             {size, 0.0f, 0.0f},                     // 1: base right
@@ -168,7 +149,6 @@ public:
             {size/2.0f, size * 0.289f, size * 0.816f}  // 3: apex
         };
         
-        // Define texture coordinates
         tetra.texCoords = {
             {0.0f, 0.0f},  // 0
             {1.0f, 0.0f},  // 1
@@ -176,13 +156,11 @@ public:
             {0.5f, 0.5f}   // 3
         };
         
-        // Define the 6 edges of the tetrahedron
         tetra.edges = {
             {0, 1}, {1, 2}, {2, 0},  // base
             {0, 3}, {1, 3}, {2, 3}   // edges to apex
         };
         
-        // Define the 4 triangular faces
         tetra.faces = {
             {0, 1, 2},  // base
             {0, 1, 3},  // front face
@@ -190,17 +168,14 @@ public:
             {2, 0, 3}   // left face
         };
         
-        // Calculate normals
         tetra.calculateNormals();
         
         return tetra;
     }
     
-    // Factory method to create a sphere
     static Object3D createSphere(float radius = 1.0f, int resolution = 10) {
         Object3D sphere;
         
-        // Generate vertices using spherical coordinates
         for (int i = 0; i <= resolution; i++) {
             float phi = M_PI * static_cast<float>(i) / resolution;  // 0 to π (latitude)
             float v = static_cast<float>(i) / resolution;           // Texture coordinate v
@@ -215,31 +190,25 @@ public:
                 
                 sphere.vertices.push_back({x, y, z});
                 
-                // For a sphere, normals point in same direction as vertex position from center
                 Vector3 normal = Vector3(x, y, z).normalize();
                 sphere.normals.push_back(normal);
                 
-                // Texture coordinates (simple UV mapping)
                 sphere.texCoords.push_back({u, v});
             }
         }
         
-        // Generate edges and faces
         for (int i = 0; i < resolution; i++) {
             for (int j = 0; j < resolution; j++) {
-                // Calculate vertex indices
                 int current = i * resolution + j;
                 int next_row = (i + 1) * resolution + j;
                 int next_col = i * resolution + (j + 1) % resolution;
                 int next_both = (i + 1) * resolution + (j + 1) % resolution;
                 
-                // Add edges
                 if (i < resolution - 1) {
                     sphere.edges.push_back({current, next_row});
                 }
                 sphere.edges.push_back({current, next_col});
                 
-                // Add faces (quads, except at poles)
                 if (i < resolution - 1) {
                     sphere.faces.push_back({current, next_col, next_both, next_row});
                 }
@@ -250,4 +219,4 @@ public:
     }
 };
 
-#endif // OBJECT3D_H
+#endif

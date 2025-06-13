@@ -10,13 +10,10 @@
 
 class TextureLoader {
 private:
-    // Cache of loaded textures
     static std::map<std::string, GLuint> textureCache;
     
 public:
-    // Generate a procedural texture and return OpenGL texture ID
     static GLuint createProceduralTexture(const std::string& patternType = "checkerboard") {
-        // Check if texture is already loaded
         if (textureCache.find(patternType) != textureCache.end()) {
             return textureCache[patternType];
         }
@@ -25,13 +22,11 @@ public:
         glGenTextures(1, &textureID);
         glBindTexture(GL_TEXTURE_2D, textureID);
         
-        // Set texture parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         
-        // Create a checkerboard pattern
         const int width = 64;
         const int height = 64;
         GLubyte checkImage[width][height][4];
@@ -72,13 +67,11 @@ public:
         
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkImage);
         
-        // Store in cache
         textureCache[patternType] = textureID;
         
         return textureID;
     }
     
-    // Clean up textures
     static void cleanup() {
         for (auto& pair : textureCache) {
             glDeleteTextures(1, &pair.second);
@@ -87,7 +80,6 @@ public:
     }
 };
 
-// Initialize static member
 std::map<std::string, GLuint> TextureLoader::textureCache;
 
-#endif // TEXTURE_LOADER_H
+#endif
