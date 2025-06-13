@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <string>
 
 // macOS specific OpenGL includes
 #define GL_SILENCE_DEPRECATION
@@ -19,6 +20,7 @@ bool wireframeMode = true;
 bool depthTestEnabled = true;
 bool lightingEnabled = true;
 bool texturesEnabled = true;
+bool showInstructions = true;  // Toggle for showing instructions
 
 // Object transformation parameters
 Vector3 objectPosition(0.0f, 0.0f, 0.0f);
@@ -41,6 +43,9 @@ float shininess = 32.0f;
 int currentObjectIndex = 0;
 std::vector<Object3D> objects;
 std::vector<GLuint> textures;
+
+// Shape names for display
+std::vector<std::string> objectNames = {"Cube", "Pyramid", "Tetrahedron", "Sphere"};
 
 // TransformationPipeline instance
 TransformationPipeline pipeline;
@@ -67,6 +72,80 @@ void setupLighting() {
     } else {
         glDisable(GL_LIGHTING);
     }
+}
+
+// Render text on screen
+void renderText(float x, float y, const char *text) {
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    
+    // Switch to orthographic projection for text rendering
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, windowWidth, 0, windowHeight);
+    
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    
+    // Position text
+    glRasterPos2f(x, y);
+    
+    // Draw each character
+    for (const char* c = text; *c != '\0'; c++) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *c);
+    }
+    
+    // Restore matrices
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    
+    // Restore states
+    if (lightingEnabled && !wireframeMode) {
+        glEnable(GL_LIGHTING);
+    }
+    if (texturesEnabled && !wireframeMode) {
+        glEnable(GL_TEXTURE_2D);
+    }
+}
+
+// Display on-screen instructions
+void displayInstructions() {
+    if (!showInstructions) return;
+    
+    // Set text color to white
+    glColor3f(1.0f, 1.0f, 1.0f);
+    
+    // Display current object and modes
+    char buffer[100];
+    sprintf(buffer, "Current object: %s", objectNames[currentObjectIndex].c_str());
+    renderText(10, windowHeight - 20, buffer);
+    
+    sprintf(buffer, "Wireframe: %s | Depth Test: %s | Lighting: %s | Textures: %s",
+            wireframeMode ? "ON" : "OFF",
+            depthTestEnabled ? "ON" : "OFF",
+            lightingEnabled ? "ON" : "OFF",
+            texturesEnabled ? "ON" : "OFF");
+    renderText(10, windowHeight - 40, buffer);
+    
+    // Display controls
+    renderText(10, windowHeight - 70, "Controls:");
+    renderText(10, windowHeight - 90, "WASD: Move | Q/E: Up/Down | Arrows: Rotate X/Y | Z/X: Rotate Z");
+    renderText(10, windowHeight - 110, "+/-: Scale | R: Reset | F: Wireframe | T: Depth Test");
+    renderText(10, windowHeight - 130, "L: Lighting | G: Textures | TAB: Switch Object | H: Hide/Show Help");
+    
+    // Display current transformation values
+    sprintf(buffer, "Position: (%.1f, %.1f, %.1f)", objectPosition.x, objectPosition.y, objectPosition.z);
+    renderText(10, 50, buffer);
+    
+    sprintf(buffer, "Rotation: (%.1f, %.1f, %.1f)", objectRotation.x, objectRotation.y, objectRotation.z);
+    renderText(10, 30, buffer);
+    
+    sprintf(buffer, "Scale: (%.2f, %.2f, %.2f)", objectScale.x, objectScale.y, objectScale.z);
+    renderText(10, 10, buffer);
 }
 
 // Function to handle rendering
@@ -187,6 +266,9 @@ void display() {
         }
     }
     
+    // Render instructions overlay
+    displayInstructions();
+    
     // Disable texturing
     glDisable(GL_TEXTURE_2D);
     
@@ -263,6 +345,11 @@ void keyboard(unsigned char key, int x, int y) {
         // Toggle textures
         case 'g':
             texturesEnabled = !texturesEnabled;
+            break;
+        
+        // Toggle instructions display
+        case 'h': case 'H':
+            showInstructions = !showInstructions;
             break;
         
         // Change object
@@ -343,7 +430,7 @@ int main(int argc, char** argv) {
     textures.push_back(TextureLoader::createProceduralTexture("gradient"));
     textures.push_back(TextureLoader::createProceduralTexture("checkerboard"));
     
-    // Print instructions
+    // Print instructions to console
     std::cout << "==== 3D Transformation and Rendering ====" << std::endl;
     std::cout << "Controls:" << std::endl;
     std::cout << "  WASD: Move object in X/Z plane" << std::endl;
@@ -356,6 +443,7 @@ int main(int argc, char** argv) {
     std::cout << "  T: Toggle depth test" << std::endl;
     std::cout << "  L: Toggle lighting" << std::endl;
     std::cout << "  G: Toggle textures" << std::endl;
+    std::cout << "  H: Toggle on-screen instructions" << std::endl;
     std::cout << "  TAB: Switch between objects" << std::endl;
     std::cout << "  ESC: Exit application" << std::endl;
     
